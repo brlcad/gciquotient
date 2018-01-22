@@ -10,10 +10,15 @@ HOW TO RUN
 The instance folders will be created in the same directory as the gciq.py file.
 
 FLAGS
--------
+-----
 --apikey is used to input your apikey
 --debug can be added for debugging use.
 
+TODO
+----
+* capture comments
+* stash instances by status
+* capture tasks separate from instances
 
 Development and contributions by:
   Jeff Sieu (original author)
