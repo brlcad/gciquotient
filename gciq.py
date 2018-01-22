@@ -136,7 +136,9 @@ def write_to_folder(instance, cookies):
 			attachment_path = os.path.join(folder_path, filename)
 			file_contents = requests.get(url, cookies=cookies, stream=True)
 			# Throw an error for bad status codes
-			file_contents.raise_for_status()
+			# file_contents.raise_for_status()
+                        if file_contents.status_code != 200:
+                                print('\tWARNING: %s failed' % url)
 
 			with io.open(attachment_path, 'wb') as outfile:
 			    for block in file_contents.iter_content(1024):
