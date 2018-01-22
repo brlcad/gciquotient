@@ -106,7 +106,7 @@ def write_to_folder(instance, cookies):
 		folder_name = "Debug_" + folder_name
 	current_path = os.getcwd()
 
-	folder_path = os.path.join(current_path, folder_name)
+	folder_path = os.path.join(current_path, folder_name.replace('"', ''))
 	text_file_path = os.path.join(folder_path, TEXT_FILE_NAME)
 
 	# Try create folder, catch any errors (e.g. folder already exists)
