@@ -1,4 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
 import os
+import sys
 import errno
 import argparse
 import re
@@ -13,26 +18,54 @@ argparser = argparse.ArgumentParser(description='GCI Task Instances')
 argparser.add_argument('--apikey', type=str, nargs='?', required=True,
                        help='api key')
 argparser.add_argument('--instance', type=str, nargs='?', required=False,
-                       help='task instance')
+                       help='download a single task instance')
 argparser.add_argument('--url', type=str, nargs='?',
                        default='https://codein.withgoogle.com',
                        help='server url')
-argparser.add_argument('--debug', action='store_true',
-                       help='enable debug request logging')
+argparser.add_argument('--datadir', type=str, nargs='?',
+                       default='gci_data',
+                       help='directory in which to store all downloaded data')
 FLAGS = argparser.parse_args()
 
-TEXT_FILE_NAME = 'task_information.txt'
+INSTANCE_SUMMARY_FILENAME = 'task_summary.txt'
+INSTANCE_ACTIVITY_FILENAME = 'activity.json'
+
 
 def sterilize(directory_str):
-	forbidden_chars = '/\\.*?<>:|'
+	forbidden_chars = '/\\*?<>:|'
 	for char in forbidden_chars:
 		directory_str = directory_str.replace(char, '_')
 	return directory_str
 
-def get_folder_name(instance):
+def convert_to_utf8(input):
+        if isinstance(input, dict):
+                return {convert_to_utf8(key): convert_to_utf8(value) for key, value in input.iteritems()}
+        elif isinstance(input, list):
+                return [convert_to_utf8(element) for element in input]
+        elif isinstance(input, unicode):
+                return input.encode('utf-8')
+        else:
+                return str(input)
+
+
+def get_task_file_name(task):
+        return sterilize(str(task['id']) + '-' + task['name'].replace('"', '') + '.json')
+
+
+def write_task(taskdir, task):
+        file_name = get_task_file_name(task)
+        file_path = os.path.join(taskdir, file_name)
+        # print("\t@ %s" % file_path)
+        with open(file_path, 'w') as outfile:
+                outfile.write(json.dumps(task, indent=4))
+        outfile.close()
+
+def get_instance_folder_name(instance):
         if instance['completion_date'] == 'None':
-                return sterilize('0000-00-00 00_00_00' + '-' + instance['task_definition_name'] + "_-_" + instance['organization_name'])
-	return sterilize(instance['completion_date'] + '-' + instance['task_definition_name'] + "_-_" + instance['organization_name'])
+                instance['completion_date'] = '0000-00-00 00_00_00'
+        task_name = instance['task_definition_name'].replace('"', '')
+	return sterilize(instance['completion_date'] + '-' + task_name + "_-_" + instance['organization_name'])
+
 
 def get_prettified_info(instance):
 	task_id = instance['id']
@@ -77,11 +110,16 @@ def get_prettified_info(instance):
 	output += 'Last modified: ' + modified + '\n'
 	return output
 
-def get_instance_attachments(instance, cookies):
-	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?page=1&page_size=20&task_instance='+instance['id'], cookies=cookies)
+
+def get_instance_activity(instance, cookies):
+	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance='+instance['id'], cookies=cookies)
 	info = json.loads(page.text.encode('utf-8'))
+        return info['results']
+
+
+def get_instance_attachments(activity):
 	attachments = []
-	for result in info['results']:
+	for result in activity:
 		for attachment in result['attachments']:
 			url = attachment['url']
 			name = attachment['filename']
@@ -89,42 +127,33 @@ def get_instance_attachments(instance, cookies):
 	return attachments
 
 
-def convert_to_utf8(input):
-    if isinstance(input, dict):
-        return {convert_to_utf8(key): convert_to_utf8(value) for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [convert_to_utf8(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return str(input)
-
-def write_to_folder(instance, cookies):
-	info = get_prettified_info(instance)
-	folder_name = get_folder_name(instance)
-	if FLAGS.debug:
-		folder_name = "Debug_" + folder_name
-	current_path = os.getcwd()
-
-	folder_path = os.path.join(current_path, folder_name.replace('"', ''))
-	text_file_path = os.path.join(folder_path, TEXT_FILE_NAME)
-
-	# Try create folder, catch any errors (e.g. folder already exists)
+def write_instance(datadir, instance, cookies):
+	folder_name = get_instance_folder_name(instance)
+	folder_path = os.path.join(datadir, folder_name)
 	try:
-	    os.mkdir(folder_path)
+                os.mkdir(folder_path)
 	except OSError as e:
-	    if e.errno != errno.EEXIST:
-	        raise
+                if e.errno != errno.EEXIST:
+                        raise
 
         print("\t@ %s" % folder_path)
 
-	# Write to description file
-	with open(text_file_path, 'w') as outfile:
+	# write a summary text file
+	summary_file = os.path.join(folder_path, INSTANCE_SUMMARY_FILENAME)
+	info = get_prettified_info(instance)
+	with open(summary_file, 'w') as outfile:
 		outfile.write(info)
+        outfile.close()
 
-	# Download attachments
-	attachments = get_instance_attachments(instance, cookies)
-        # print(attachments)
+        # get the discussion and state changes
+        activity = get_instance_activity(instance, cookies)
+	activity_file = os.path.join(folder_path, INSTANCE_ACTIVITY_FILENAME)
+        with open(activity_file, 'w') as outfile:
+                outfile.write(json.dumps(activity, indent=4))
+        outfile.close()
+
+	# download attachments
+	attachments = get_instance_attachments(activity)
 
 	if attachments:
 		for attachment in attachments:
@@ -141,20 +170,67 @@ def write_to_folder(instance, cookies):
                                 print('\tWARNING: %s failed' % url)
 
 			with io.open(attachment_path, 'wb') as outfile:
-			    for block in file_contents.iter_content(1024):
-			        outfile.write(block)
-# 	else:
-# 		print("\tThere are no attachments for task: " + instance['task_definition_name'])
-	
-def save_task_instances(client, cookies):
+                                for block in file_contents.iter_content(1024):
+                                        outfile.write(block)
+                        outfile.close()
+
+
+def get_tasks(datadir, client, cookies):
+        all_tasks = []
+        next_page = 1
+        print('...downloading tasks...', end='')
+        sys.stdout.flush()
+        while next_page > 0:
+                print('.', end='')
+                sys.stdout.flush()
+                tasks = client.ListTasks(page=next_page)
+                for t in tasks['results']:
+                        all_tasks.append(t)
+
+                next_page = 0
+                if tasks['next']:
+                        result = re.search(r'page=(\d+)', tasks['next'])
+                        if result:
+                                next_page = result.group(1)
+        print('done! (%lu tasks)' % len(all_tasks))
+        return all_tasks
+
+
+def save_tasks(datadir, client, cookies):
+        tasks = get_tasks(datadir, client, cookies)
+        taskdir = os.path.join(datadir, 'tasks')
+	try:
+                os.mkdir(taskdir)
+	except OSError as e:
+                if e.errno != errno.EEXIST:
+                        raise
+
+        print('...saving GCI tasks to [%s]' % taskdir, end='')
+        sys.stdout.flush()
+        for t in tasks:
+                write_task(taskdir, t)
+                print('.', end='')
+                sys.stdout.flush()
+        print('done!')
+
+
+def save_instances(datadir, client, cookies):
+        instdir = os.path.join(datadir, 'instances')
+	try:
+                os.mkdir(instdir)
+	except OSError as e:
+                if e.errno != errno.EEXIST:
+                        raise
+
 	next_page = 1
         count = 0;
+        print('...saving GCI instances to [%s]' % instdir)
 	while next_page > 0:
 		instances = client.ListTaskInstances(page=next_page)
 		for ti in instances['results']:
 			task_id = ti['task_definition_id']
 			ti = convert_to_utf8(ti)
-			task_definition = convert_to_utf8(get_task_definition(client, task_id))
+			task_definition = convert_to_utf8(client.GetTask(task_id))
 			useful_info = [
 				'description',
 				'max_instances',
@@ -163,11 +239,11 @@ def save_task_instances(client, cookies):
 				'is_beginner',
 				'categories',
 				'time_to_complete_in_days'
-			]
+                                ]
 			for key in useful_info:
 				ti[key] = task_definition[key]
                         print('#%05u: %s' % (count, ti['task_definition_name']))
-			write_to_folder(ti, cookies)
+			write_instance(instdir, ti, cookies)
                         count += 1;
 		next_page = 0
 		if instances['next']:
@@ -176,74 +252,37 @@ def save_task_instances(client, cookies):
 				next_page = result.group(1)
 
 
-def get_task_definition(client, task_def_id):
-	return client.GetTask(task_def_id)
-
-def debug(cookies, instance_id=5890447643770880):
-	test_instance = {
-		"status": "COMPLETED",
-		"student_display_name": u"da\u00F1iel",
-		"program_year": 2016,
-		"task_definition_id": 5672905058811904,
-		"student_id": 5096715048714240,
-		"modified": "2016-11-03 01:51:51",
-		"task_definition_name": "Random task name",
-		"organization_name": u"\u1234",
-		"completion_date": "2016-11-03 01:44:04",
-		"deadline": "2016-11-09 01:01:48",
-		"organization_id": 5640347044544512,
-		"id": instance_id}
-
-	test_definition = {
-		'name': u'\u1234',
-		'status': 2,
-		'description': u'\u1234',
-		'mentors': [u'\u1234'],
-		'tags': [u'\u1234'],
-		'is_beginner': False,
-		'categories': [1,2,3],
-		'time_to_complete_in_days': 4,
-		'max_instances': 5
-	}
-
-	task_id = test_instance['task_definition_id']
-	test_instance = convert_to_utf8(test_instance)
-	test_definition = convert_to_utf8(test_definition)
-	useful_info = [
-		'description',
-		'max_instances',
-		'tags',
-		'mentors',
-		'is_beginner',
-		'categories',
-		'time_to_complete_in_days'
-	]
-	for key in useful_info:
-		test_instance[key] = test_definition[key]
-	write_to_folder(test_instance, cookies)
-
 def main():
+        print("GCIQuotient: noun | gē-sē-ī kwō-shənt")
+        print(" \"the magnitude of a specified characteristic or quality\"")
+
 	client = gciclient.GCIAPIClient(
 		auth_token=FLAGS.apikey,
-	url_prefix=FLAGS.url)
+                url_prefix=FLAGS.url)
 	value = ''
 	with open('sacsid_cookie.txt', 'r') as cookie_file:
 		for line in cookie_file:
 			value = line
-			break 
+			break
+        cookie_file.close()
+
 	value = value.replace('\n', '')
 	cookies = {
 		'SACSID': value
-	}
-	if FLAGS.debug:
-		if FLAGS.instance:
-			print(cookies)
-			debug(cookies, FLAGS.instance)
-		else:
-			debug(cookies)
-	else:
-		save_task_instances(client, cookies)
+                }
+
+	try:
+                os.mkdir(FLAGS.datadir)
+	except OSError as e:
+                if e.errno != errno.EEXIST:
+                        raise
+
+        if os.path.isdir(FLAGS.datadir):
+                print('...saving GCI data to [%s]' % FLAGS.datadir)
+
+        save_tasks(FLAGS.datadir, client, cookies)
+	save_instances(FLAGS.datadir, client, cookies)
 
 if __name__ == '__main__':
-  main()
+        main()
 
