@@ -27,7 +27,9 @@ argparser.add_argument('--datadir', type=str, nargs='?',
                        help='directory in which to store all downloaded data')
 FLAGS = argparser.parse_args()
 
-INSTANCE_SUMMARY_FILENAME = 'task_summary.txt'
+INSTANCE_HTML = 'index.html'
+INSTANCE_SUMMARY_FILENAME = 'instance.txt'
+INSTANCE_FILENAME = 'instance.json'
 INSTANCE_ACTIVITY_FILENAME = 'activity.json'
 
 
@@ -36,6 +38,7 @@ def sterilize(directory_str):
 	for char in forbidden_chars:
 		directory_str = directory_str.replace(char, '_')
 	return directory_str
+
 
 def convert_to_utf8(input):
         if isinstance(input, dict):
@@ -60,11 +63,12 @@ def write_task(taskdir, task):
                 outfile.write(json.dumps(task, indent=4))
         outfile.close()
 
+
 def get_instance_folder_name(instance):
-        if instance['completion_date'] == 'None':
-                instance['completion_date'] = '0000-00-00 00_00_00'
+        if instance['modified'] == 'None':
+                instance['modified'] = '0000-00-00 00_00_00'
         task_name = instance['task_definition_name'].replace('"', '')
-	return sterilize(instance['completion_date'] + '-' + task_name + "_-_" + instance['organization_name'])
+	return sterilize(instance['modified'] + '-' + str(instance['id']) + '-' + task_name + "_-_" + instance['organization_name'])
 
 
 def get_prettified_info(instance):
@@ -112,9 +116,17 @@ def get_prettified_info(instance):
 
 
 def get_instance_activity(instance, cookies):
-	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance='+instance['id'], cookies=cookies)
+	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + instance['id'], cookies=cookies)
 	info = json.loads(page.text.encode('utf-8'))
-        return info['results']
+        if 'results' in info:
+                return info['results']
+        print('...WARNING: unknown instance activity result, see ' + INSTANCE_ACTIVITY_FILENAME)
+        return info
+
+
+def get_instance_html(instance, cookies):
+	page = requests.get('https://codein.withgoogle.com/dashboard/task-instances/' + instance['id'] + '/', cookies=cookies)
+        return page.text
 
 
 def get_instance_attachments(activity):
@@ -123,7 +135,7 @@ def get_instance_attachments(activity):
 		for attachment in result['attachments']:
 			url = attachment['url']
 			name = attachment['filename']
-			attachments += [{'url': 'https://codein.withgoogle.com'+url.encode('utf-8'), 'filename': name}]
+			attachments += [{'url': 'https://codein.withgoogle.com' + url.encode('utf-8'), 'filename': name}]
 	return attachments
 
 
@@ -174,6 +186,19 @@ def write_instance(datadir, instance, cookies):
                                         outfile.write(block)
                         outfile.close()
 
+#         # mark this instance done
+#         html_file = os.path.join(folder_path, INSTANCE_HTML)
+#         html = get_instance_html(instance, cookies)
+#         with open(html_file, 'w') as outfile:
+#                 outfile.write(html)
+#         outfile.close()
+
+        # write the raw instance json
+        instance_file = os.path.join(folder_path, INSTANCE_FILENAME)
+        with open(instance_file, 'w') as outfile:
+                outfile.write(json.dumps(instance, indent=4))
+        outfile.close()
+
 
 def get_tasks(datadir, client, cookies):
         all_tasks = []
@@ -223,11 +248,22 @@ def save_instances(datadir, client, cookies):
                         raise
 
 	next_page = 1
-        count = 0;
+        count = 0
         print('...saving GCI instances to [%s]' % instdir)
 	while next_page > 0:
 		instances = client.ListTaskInstances(page=next_page)
 		for ti in instances['results']:
+                        print('#%05u: %s' % (count, ti['task_definition_name']))
+
+                        # skip instances we already downloaded
+                        last_file = get_instance_folder_name(ti)
+                        last_file = os.path.join(instdir, last_file)
+                        last_file = os.path.join(last_file, INSTANCE_FILENAME)
+                        if os.path.isfile(last_file) and os.path.getsize(last_file) > 0:
+                                print('...skipped, already done')
+                                count += 1
+                                continue
+                                
 			task_id = ti['task_definition_id']
 			ti = convert_to_utf8(ti)
 			task_definition = convert_to_utf8(client.GetTask(task_id))
@@ -242,9 +278,9 @@ def save_instances(datadir, client, cookies):
                                 ]
 			for key in useful_info:
 				ti[key] = task_definition[key]
-                        print('#%05u: %s' % (count, ti['task_definition_name']))
+
 			write_instance(instdir, ti, cookies)
-                        count += 1;
+                        count += 1
 		next_page = 0
 		if instances['next']:
 			result = re.search(r'page=(\d+)', instances['next'])

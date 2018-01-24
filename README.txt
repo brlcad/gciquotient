@@ -12,7 +12,8 @@ per-instance subdirectories named according to timestamp and title.
     tasks/ - contains all tasks in json format
     instances/ - contains all task instances
       DATE-TASK_NAME_-_ORG/ - contains a single task instance
-        task_summary.txt - contains a text summary of the task
+        instance.txt - contains a text summary of the task
+        instance.json - contains raw instance data
         activity.json - contains all comments and status changes
 
 
