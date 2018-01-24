@@ -19,6 +19,11 @@ per-instance subdirectories named according to timestamp and title.
 HOW TO RUN
 ----------
 
+0. Install the necessary prerequisites:
+   python 2.7+
+   pip install beautifulsoup4
+   pip install requests[security]
+
 1. Enter the value of your 'SACSID' cookie into 'sacsid_cookie.txt'.
    (Log into the GCI website and examine your cookies using your
    browser's inspection or web development features.)
