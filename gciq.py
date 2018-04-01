@@ -129,7 +129,7 @@ def get_instance_html(instance, cookies):
         return page.text
 
 
-def get_instance_attachments(activity):
+def list_instance_attachments(activity):
 	attachments = []
 	for result in activity:
 		for attachment in result['attachments']:
@@ -165,8 +165,7 @@ def write_instance(datadir, instance, cookies):
         outfile.close()
 
 	# download attachments
-	attachments = get_instance_attachments(activity)
-
+	attachments = list_instance_attachments(activity)
 	if attachments:
 		for attachment in attachments:
 			url = attachment['url']
