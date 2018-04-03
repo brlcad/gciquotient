@@ -45,7 +45,6 @@ TODO
 * tally instances apriori
 * stash raw html
 * skip client.GetTask during instances
-* throttle per instance
 * close streams we're done with
 
 Development and contributions by:

@@ -1,9 +1,11 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
 import os
 import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 import errno
 import argparse
 import re
@@ -12,6 +14,7 @@ import io
 import client as gciclient
 import requests
 import urlparse
+import time
 from bs4 import BeautifulSoup
 
 argparser = argparse.ArgumentParser(description='GCI Task Instances')
@@ -31,6 +34,7 @@ INSTANCE_HTML = 'index.html'
 INSTANCE_SUMMARY_FILENAME = 'instance.txt'
 INSTANCE_FILENAME = 'instance.json'
 INSTANCE_ACTIVITY_FILENAME = 'activity.json'
+INSTANCE_THROTTLE = 1
 
 
 def sterilize(directory_str):
@@ -52,7 +56,7 @@ def convert_to_utf8(input):
 
 
 def get_task_file_name(task):
-        return sterilize(str(task['id']) + '-' + task['name'].replace('"', '') + '.json')
+        return sterilize(convert_to_utf8(task['id']) + '-' + convert_to_utf8(task['name']).replace('"', '') + '.json')
 
 
 def write_task(taskdir, task):
@@ -68,7 +72,7 @@ def get_instance_folder_name(instance):
         if instance['modified'] == 'None':
                 instance['modified'] = '0000-00-00 00_00_00'
         task_name = instance['task_definition_name'].replace('"', '')
-	return sterilize(instance['modified'] + '-' + str(instance['id']) + '-' + task_name + "_-_" + instance['organization_name'])
+	return sterilize(instance['modified'] + '-' + convert_to_utf8(instance['id']) + '-' + task_name + "_-_" + instance['organization_name'])
 
 
 def get_prettified_info(instance):
@@ -208,6 +212,7 @@ def get_tasks(datadir, client, cookies):
                 print('.', end='')
                 sys.stdout.flush()
                 tasks = client.ListTasks(page=next_page)
+                time.sleep(INSTANCE_THROTTLE)
                 for t in tasks['results']:
                         all_tasks.append(t)
 
@@ -251,6 +256,7 @@ def save_instances(datadir, client, cookies):
         print('...saving GCI instances to [%s]' % instdir)
 	while next_page > 0:
 		instances = client.ListTaskInstances(page=next_page)
+                time.sleep(INSTANCE_THROTTLE)
 		for ti in instances['results']:
                         print('#%05u: %s' % (count, ti['task_definition_name']))
 
@@ -266,6 +272,7 @@ def save_instances(datadir, client, cookies):
 			task_id = ti['task_definition_id']
 			ti = convert_to_utf8(ti)
 			task_definition = convert_to_utf8(client.GetTask(task_id))
+                        time.sleep(INSTANCE_THROTTLE)
 			useful_info = [
 				'description',
 				'max_instances',
