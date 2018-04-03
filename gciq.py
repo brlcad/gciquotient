@@ -71,13 +71,13 @@ def write_task(taskdir, task):
 def get_instance_folder_name(instance):
         if instance['modified'] == 'None':
                 instance['modified'] = '0000-00-00 00_00_00'
-        task_name = instance['task_definition_name'].replace('"', '')
-	return sterilize(instance['modified'] + '-' + convert_to_utf8(instance['id']) + '-' + task_name + "_-_" + instance['organization_name'])
+        task_name = convert_to_utf8(instance['task_definition_name']).replace('"', '')
+	return sterilize(convert_to_utf8(instance['modified']) + '-' + convert_to_utf8(instance['id']) + '-' + task_name + "_-_" + convert_to_utf8(instance['organization_name']))
 
 
 def get_prettified_info(instance):
-	task_id = instance['id']
-	task_def_id = instance['task_definition_id']
+	task_id = str(instance['id'])
+	task_def_id = str(instance['task_definition_id'])
 	task_name = instance['task_definition_name']
 	task_desc = instance['description']
 	task_status = instance['status']
@@ -85,9 +85,9 @@ def get_prettified_info(instance):
 	max_instances = instance['max_instances']
 
 	org_name = instance['organization_name']
-	org_id = instance['organization_id']
+	org_id = str(instance['organization_id'])
 
-	student_id = instance['student_id']
+	student_id = str(instance['student_id'])
 	student_name = instance['student_display_name']
 
 	mentors = instance['mentors']
@@ -116,11 +116,11 @@ def get_prettified_info(instance):
 	output += '\n'
 	output += 'Status: ' + task_status + (' (' + deadline + ')' if task_status == 'COMPLETED' else '') + '\n'
 	output += 'Last modified: ' + modified + '\n'
-	return output
+	return convert_to_utf8(output)
 
 
 def get_instance_activity(instance, cookies):
-	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + instance['id'], cookies=cookies)
+	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + str(instance['id']), cookies=cookies)
 	info = json.loads(page.text.encode('utf-8'))
         if 'results' in info:
                 return info['results']
@@ -129,7 +129,7 @@ def get_instance_activity(instance, cookies):
 
 
 def get_instance_html(instance, cookies):
-	page = requests.get('https://codein.withgoogle.com/dashboard/task-instances/' + instance['id'] + '/', cookies=cookies)
+	page = requests.get('https://codein.withgoogle.com/dashboard/task-instances/' + str(instance['id']) + '/', cookies=cookies)
         return page.text
 
 
@@ -258,7 +258,7 @@ def save_instances(datadir, client, cookies):
 		instances = client.ListTaskInstances(page=next_page)
                 time.sleep(INSTANCE_THROTTLE)
 		for ti in instances['results']:
-                        print('#%05u: %s' % (count, ti['task_definition_name']))
+                        print('#%05u: %s' % (count, convert_to_utf8(ti['task_definition_name'])))
 
                         # skip instances we already downloaded
                         last_file = get_instance_folder_name(ti)
@@ -270,7 +270,6 @@ def save_instances(datadir, client, cookies):
                                 continue
                                 
 			task_id = ti['task_definition_id']
-			ti = convert_to_utf8(ti)
 			task_definition = convert_to_utf8(client.GetTask(task_id))
                         time.sleep(INSTANCE_THROTTLE)
 			useful_info = [
