@@ -45,10 +45,16 @@ INSTANCE_THROTTLE = 1
 
 
 def sterilize(directory_str):
+	# scrub chars that are a PITA in directory names
 	forbidden_chars = '/\\*?<>:|'
 	for char in forbidden_chars:
 		directory_str = directory_str.replace(char, '_')
-	return directory_str
+	# collapse sequences to a single scrub
+	directory_str = re.sub(r'_+', '_', directory_str)
+	# substitute non-printable chars and non-ascii
+	directory_str = re.sub(r'[^ -~]+', 'X', directory_str)
+	# some NAS-encrypted filesystems limit filenames to 144 chars, so stop short
+	return (directory_str[:140] + '...') if len(directory_str) > 140 else directory_str
 
 
 def convert_to_utf8(input):
@@ -127,11 +133,8 @@ def get_prettified_info(instance):
 
 
 def get_instance_activity(instance, cookies):
-	print('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + str(instance['id']))
 	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + str(instance['id']), cookies=cookies)
-	print(page)
 	info = json.loads(page.text.encode('utf-8'))
-	print(info)
 	if 'results' in info:
 		return info['results']
 	print('...WARNING: unknown instance activity result, see ' + INSTANCE_ACTIVITY_FILENAME)
