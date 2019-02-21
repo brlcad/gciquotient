@@ -67,7 +67,7 @@ TODO
 Majority development by:
   Christopher Sean Morrison <morrison@brlcad.org>
   Jeff Sieu (original author)
-  Robert Sieu (Google API)
+  Robert Spier (Google API)
 
 Additional contributions by::
   Scott Sunarto, Vishal Gupta, Robby O'Connor, Frederick "Freso" Olesen
