@@ -29,6 +29,10 @@ HOW TO RUN
 
    (Log into the GCI website and examine your cookies using your
    browser's inspection or web development features.)
+   Instructions for Chrome : 
+   1. Log into the GCI Website
+   2. Chrome Controls (Top-right) --> Settings --> Advanced --> Content Settings --> Cookies --> See all cookies...
+   3. Search for 'codein.withgoogle.com' --> SACSID --> Copy Content (~AJKiYcG...) to sacsid_cookie.txt
 
 2. $ python gciq.py --apikey <your api key>
 
