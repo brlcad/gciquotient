@@ -4,18 +4,26 @@
 from __future__ import print_function
 import os
 import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
+if sys.version_info[0] >= 3:
+	unicode = str
+try:
+	reload(sys)  # Python 2.7
+	sys.setdefaultencoding('utf8')
+except NameError:
+	pass
 import errno
 import argparse
 import re
 import json
 import io
-import client as gciclient
-import requests
-import urlparse
 import time
+try:
+	import urlparse as up # Python 2.7
+except:
+	import urllib.parse as up # Python 3
+import requests
 from bs4 import BeautifulSoup
+import client as gciclient
 
 argparser = argparse.ArgumentParser(description='GCI Task Instances')
 argparser.add_argument('--apikey', type=str, nargs='?', required=True,
@@ -46,11 +54,11 @@ def sterilize(directory_str):
 
 def convert_to_utf8(input):
 	if isinstance(input, dict):
-		return {convert_to_utf8(key): convert_to_utf8(value) for key, value in input.iteritems()}
+		return {convert_to_utf8(key): convert_to_utf8(value) for key, value in input.items()}
 	elif isinstance(input, list):
 		return [convert_to_utf8(element) for element in input]
 	elif isinstance(input, unicode):
-		return input.encode('utf-8')
+		return input
 	else:
 		return str(input)
 
@@ -120,8 +128,11 @@ def get_prettified_info(instance):
 
 
 def get_instance_activity(instance, cookies):
+	print('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + str(instance['id']))
 	page = requests.get('https://codein.withgoogle.com/api/program/current/taskupdate/?task_instance=' + str(instance['id']), cookies=cookies)
+	print(page)
 	info = json.loads(page.text.encode('utf-8'))
+	print(info)
 	if 'results' in info:
 		return info['results']
 	print('...WARNING: unknown instance activity result, see ' + INSTANCE_ACTIVITY_FILENAME)
@@ -173,7 +184,7 @@ def write_instance(datadir, instance, cookies):
 	if attachments:
 		for attachment in attachments:
 			url = attachment['url']
-			urlpath = urlparse.urlparse(url).path
+			urlpath = up.urlparse(url).path
 			base = os.path.basename(os.path.dirname(urlpath))
 			filename = base + '_' + attachment['filename'].encode('utf-8')
 			print('\tgetting ' + filename)
@@ -220,7 +231,7 @@ def get_tasks(datadir, client, cookies):
 		if tasks['next']:
 			result = re.search(r'page=(\d+)', tasks['next'])
 			if result:
-				next_page = result.group(1)
+				next_page = int(result.group(1))
 	print('done! (%lu tasks)' % len(all_tasks))
 	return all_tasks
 
@@ -271,6 +282,7 @@ def save_instances(datadir, client, cookies):
 				
 			task_id = ti['task_definition_id']
 			task_definition = convert_to_utf8(client.GetTask(task_id))
+			# print(task_definition)
 			time.sleep(INSTANCE_THROTTLE)
 			useful_info = [
 				'description',
@@ -290,7 +302,7 @@ def save_instances(datadir, client, cookies):
 		if instances['next']:
 			result = re.search(r'page=(\d+)', instances['next'])
 			if result:
-				next_page = result.group(1)
+				next_page = int(result.group(1))
 
 
 def main():

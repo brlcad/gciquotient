@@ -26,9 +26,12 @@ client.NewTask(myTaskDict)
 
 import json
 import logging
-import urlparse
-
+try:
+	import urlparse as up # Python 2.7
+except:
+	import urllib.parse as up # Python 3
 import requests
+
 
 
 class GCIAPIClient(object):
@@ -45,7 +48,7 @@ class GCIAPIClient(object):
   def __init__(self, auth_token=None,
                url_prefix='https://codein.withgoogle.com/',
                debug=False):
-    self.url_prefix = urlparse.urljoin(url_prefix, 'api/program/current/')
+    self.url_prefix = up.urljoin(url_prefix, 'api/program/current/')
     self.headers = {
         'Authorization': 'Bearer %s' % auth_token,
         'Content-Type': 'application/json',
@@ -59,7 +62,7 @@ class GCIAPIClient(object):
       requests_log.propagate = True
 
   def _Url(self, path):
-    return urlparse.urljoin(self.url_prefix, path) + '/'
+    return up.urljoin(self.url_prefix, path) + '/'
 
   def ListTasks(self, page=1):
     """Fetches a list of tasks.
