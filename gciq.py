@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -22,7 +22,6 @@ try:
 except:
 	import urllib.parse as up # Python 3
 import requests
-from bs4 import BeautifulSoup
 import client as gciclient
 
 argparser = argparse.ArgumentParser(description='GCI Task Instances')
