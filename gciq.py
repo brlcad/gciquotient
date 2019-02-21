@@ -306,7 +306,7 @@ def save_instances(datadir, client, cookies):
 
 
 def main():
-	print("GCIQuotient: noun | gē-sē-ī kwō-shənt")
+	print("GCI Quotient: noun | gē-sē-ī kwō-shənt")
 	print(" \"the magnitude of a specified characteristic or quality\"")
 
 	client = gciclient.GCIAPIClient(

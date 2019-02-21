@@ -26,11 +26,25 @@ HOW TO RUN
    pip install requests[security]
 
 1. Enter the value of your 'SACSID' cookie into 'sacsid_cookie.txt'.
+
    (Log into the GCI website and examine your cookies using your
    browser's inspection or web development features.)
 
 2. $ python gciq.py --apikey <your api key>
+
    (Log into the GCI website and find your API key under User Profile)
+
+
+RUNNING TIPS
+------------
+
+If instance downloading is interrupted, GCI Quotient will pick up
+where it left off the next time it's run.  If you don't want that,
+delete your datadir or specify a new datadir.
+
+Empty activity.json files (i.e., containing just []) can happen when
+your session cookie has expired or was renewed.  Check your browser to
+get the new value.
 
 
 FLAGS
