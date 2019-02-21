@@ -38,6 +38,12 @@ HOW TO RUN
    (Log into the GCI website and find your API key under User Profile)
 
 
+FLAGS
+-----
+--apikey is used to input your apikey
+--datadir is used to specify a different output directory
+
+
 RUNNING TIPS
 ------------
 
@@ -50,12 +56,6 @@ your session cookie has expired or was renewed.  Check your browser to
 get the new value.
 
 
-FLAGS
------
---apikey is used to input your apikey
---datadir is used to specify a different output directory
-
-
 TODO
 ----
 * stash instances by status
@@ -64,6 +64,9 @@ TODO
 * skip client.GetTask during instances
 * close streams we're done with
 
-Development and contributions by:
-  Jeff Sieu (original author)
+Majority development by:
   Christopher Sean Morrison <morrison@brlcad.org>
+  Jeff Sieu (original author)
+
+Additional contributions by::
+  Scott Sunarto, Vishal Gupta, Robby O'Connor, Frederick "Freso" Olesen
