@@ -51,6 +51,7 @@ def make_tasks(datadir, client):
     sys.stdout.flush()
     for t in tasks:
         submit_task(t, client)
+        time.sleep(1)
         print('.', end='')
         sys.stdout.flush()
     print('done!')
